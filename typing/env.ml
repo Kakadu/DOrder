@@ -225,6 +225,7 @@ let set_unit_name name =
 (* Lookup by identifier *)
 
 let rec find_module_descr path env =
+  (* Printf.printf "find_module_descr of `%s`\n%!" (Path.name path); *)
   match path with
     Pident id ->
       begin try
@@ -252,6 +253,7 @@ let rec find_module_descr path env =
       end
 
 let find proj1 proj2 path env =
+  (* Printf.printf "find of `%s`\n%!" (Path.name path); *)
   match path with
     Pident id ->
       let (p, data) = Ident.find_same id (proj1 env)
@@ -310,6 +312,7 @@ let find_modtype_expansion path env =
   | Tmodtype_manifest mty -> mty
 
 let find_module path env =
+  (* Printf.printf "find_module of `%s`\n%!" (Path.name path); *)
   match path with
     Pident id ->
       begin try

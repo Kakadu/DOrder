@@ -56,7 +56,7 @@ let initial_env () =
   with Not_found ->
     failwith "cannot open pervasives.cmi"
 
-let initial_fenv env = 
+let initial_fenv env =
 	Lightenv.addn (Builtins.frames env) Lightenv.empty
 
 let (++) x f = f x
@@ -67,21 +67,23 @@ let print_if ppf flag printer arg =
 
 let type_implementation initial_env ast =
   Typecore.reset_delayed_checks ();
+ Printf.printf "**** %s %d\n%!" __FILE__ __LINE__;
   let str = Typemod.type_structure initial_env ast Location.none in
-    Typecore.force_delayed_checks ();
-    str
+   Printf.printf "**** %s %d\n%!" __FILE__ __LINE__;
+  Typecore.force_delayed_checks ();
+  str
 
 let analyze ppf sourcefile (str, tystr, env, fenv, ifenv) =
   (*try*)
 		Qualifymod.qualify_implementation sourcefile fenv ifenv env [] str tystr
 	(*with _ -> (
 		if (!Clflags.preservation) then
-			Format.fprintf Format.std_formatter 
+			Format.fprintf Format.std_formatter
 				"Sorry! Preservation properties is not fully supported for %s@." sourcefile
 		else
 			Format.fprintf Format.std_formatter
 				"Inferring invariants for %s encouters internal bug. Please contact@."
-				sourcefile	
+				sourcefile
 	)*)
 
 let load_qualfile ppf qualfile =
@@ -90,7 +92,7 @@ let load_qualfile ppf qualfile =
 
 let load_mlqfile ppf env ifacefile =
   let (preds, vals) = if Sys.file_exists ifacefile then Pparse.file ppf ifacefile Parse.liquid_interface ast_impl_magic_number else ([], []) in
-    List.map (fun (s, pf) -> (s, F.translate_pframe env preds pf)) vals 
+    List.map (fun (s, pf) -> (s, F.translate_pframe env preds pf)) vals
 
 let lookup_path s env =
   fst (Env.lookup_value (Longident.parse s) env)
@@ -101,18 +103,18 @@ let load_mlq_in_env env fenv ifenv =
       let p = lookup_path s env in
       (*let ff = Frame.fresh_without_vars env ((Env.find_value p env).val_type)
        * in*)
-      let _ = if String.contains s '.' then failwith (Printf.sprintf "mlq: val %s has invalid name" s) in    
+      let _ = if String.contains s '.' then failwith (Printf.sprintf "mlq: val %s has invalid name" s) in
       (*let _ = if not(F.same_shape true ff pf) then
                 failwith (sprintf "mlq: val %s has shape which differs from usage" s) in*)
-        Lightenv.add p pf fenv 
+        Lightenv.add p pf fenv
     with Not_found -> failwith (Printf.sprintf "mlq: val %s does not correspond to program value" s) in
   List.fold_left load_frame fenv ifenv
 
 let load_builtins ppf env fenv =
-  let b = match !builtins_file with 
+  let b = match !builtins_file with
           | Some b -> if not(Sys.file_exists b) then failwith (sprintf "builtins: file %s does not exist" b) else b
           | None -> "" in
-  let fenv = 
+  let fenv =
     try
       let kvl = load_mlqfile ppf env b in
       let f = (fun (k, v) -> (lookup_path k env, F.label_like v v)) in
@@ -120,16 +122,23 @@ let load_builtins ppf env fenv =
       Lightenv.addn kvl fenv
     with Not_found -> failwith (Printf.sprintf "builtins: val %s does not correspond to library value" b) in
   (env, fenv)
-    
+
 let load_sourcefile ppf sourcefile =
+  Printf.printf "**** %s %d\n%!" __FILE__ __LINE__;
   init_path ();
+  Printf.printf "**** %s %d\n%!" __FILE__ __LINE__;
   let env = initial_env () in
+  Printf.printf "**** %s %d\n%!" __FILE__ __LINE__;
   let fenv = initial_fenv env in
-  let imp_str = Pparse.file ppf sourcefile Parse.implementation ast_impl_magic_number in 
+  Printf.printf "**** %s %d\n%!" __FILE__ __LINE__;
+  let imp_str = Pparse.file ppf sourcefile Parse.implementation ast_impl_magic_number in
+  Printf.printf "**** %s %d\n%!" __FILE__ __LINE__;
 	(*let sourcetext = Pprintast.string_of_structure str in
 	let _ = print_string sourcetext in
 	let _ = Run.sample "./tests/bsearch.ml" in*)
-  let str = if !Clflags.no_anormal then imp_str else Normalize.normalize_structure imp_str in
+  let str =
+    if !Clflags.no_anormal then imp_str else Normalize.normalize_structure imp_str
+  in
   let str = print_if ppf Clflags.dump_parsetree Printast.implementation str in
   let (tystr, _, env) = type_implementation env str in
     (str, tystr, env, fenv)
@@ -138,18 +147,23 @@ let process_sourcefile fname =
   let bname = Misc.chop_extension_if_any fname in
   let (qname, iname) = (bname ^ ".quals", bname ^ ".mlq") in
   try
+   Printf.printf "**** %s %d\n%!" __FILE__ __LINE__;
    let (str, tystr, env, fenv) = load_sourcefile std_formatter !filename in
+   Printf.printf "**** %s %d\n%!" __FILE__ __LINE__;
    if !dump_qualifs
    then
      Qdump.dump_default_qualifiers (tystr, env, fenv) qname
    else
     let quals = load_qualfile std_formatter qname in
-     let (env, fenv) = load_builtins std_formatter env fenv in 
+     let (env, fenv) = load_builtins std_formatter env fenv in
      let ifenv = load_mlqfile std_formatter env iname in
      let ifenv = load_mlq_in_env env Lightenv.empty ifenv in
      let source = (str, List.rev_append quals tystr, env, fenv, ifenv) in
      analyze std_formatter !filename source
-  with x -> (report_error std_formatter x; exit 1)
+
+  with Not_found -> printf "Exception !!!!\n%!";
+                    Printexc.print_backtrace stdout;
+   |  x -> (report_error std_formatter x; exit 1)
 
 let main () =
   Arg.parse [
@@ -222,7 +236,7 @@ let main () =
 		 "-no_hoflag", Arg.Set no_hoflag, "do not analyze higher-order functions";
 		 "-reachability", Arg.Set reachability, "reachability analysis";
 		 "-dump_specs", Arg.Set dump_specs, "dump specifications into files";
-     "-v", Arg.Int (fun c -> Common.verbose_level := c), 
+     "-v", Arg.Int (fun c -> Common.verbose_level := c),
               "<level> Set degree of analyzer verbosity:\n\
                \032    0      No output\n\
                \032    1      +Verbose errors\n\
@@ -236,6 +250,6 @@ let main () =
   ] file_argument usage;
   process_sourcefile !filename
 
-let _ = 
+let _ =
   Printf.printf "MSolve 1.0: © Copyright 2016 Purdue Univerisity, All rights reserved \n";
 	main (); exit 0

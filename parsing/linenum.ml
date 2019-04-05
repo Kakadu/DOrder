@@ -23,16 +23,16 @@ let parse_sharp_line s =
 
 # 25 "parsing/linenum.ml"
 let __ocaml_lex_tables = {
-  Lexing.lex_base = 
+  Lexing.lex_base =
    "\000\000\253\255\001\000\254\255\002\000\007\000\017\000\004\000\
     \255\255\008\000\009\000\066\000";
-  Lexing.lex_backtrk = 
+  Lexing.lex_backtrk =
    "\255\255\255\255\001\000\255\255\255\255\255\255\255\255\000\000\
     \255\255\255\255\255\255\255\255";
-  Lexing.lex_default = 
+  Lexing.lex_default =
    "\004\000\000\000\255\255\000\000\004\000\004\000\009\000\255\255\
     \000\000\009\000\010\000\009\000";
-  Lexing.lex_trans = 
+  Lexing.lex_trans =
    "\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\
     \000\000\000\000\003\000\003\000\003\000\002\000\008\000\002\000\
     \005\000\003\000\008\000\008\000\002\000\007\000\007\000\000\000\
@@ -74,7 +74,7 @@ let __ocaml_lex_tables = {
     \000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\
     \000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\
     \000\000\000\000\001\000";
-  Lexing.lex_check = 
+  Lexing.lex_check =
    "\255\255\255\255\255\255\255\255\255\255\255\255\255\255\255\255\
     \255\255\255\255\000\000\002\000\004\000\000\000\007\000\004\000\
     \005\000\005\000\009\000\010\000\005\000\009\000\010\000\255\255\
@@ -116,22 +116,22 @@ let __ocaml_lex_tables = {
     \255\255\255\255\255\255\255\255\255\255\255\255\255\255\255\255\
     \255\255\255\255\255\255\255\255\255\255\255\255\255\255\255\255\
     \255\255\255\255\011\000";
-  Lexing.lex_base_code = 
+  Lexing.lex_base_code =
    "";
-  Lexing.lex_backtrk_code = 
+  Lexing.lex_backtrk_code =
    "";
-  Lexing.lex_default_code = 
+  Lexing.lex_default_code =
    "";
-  Lexing.lex_trans_code = 
+  Lexing.lex_trans_code =
    "";
-  Lexing.lex_check_code = 
+  Lexing.lex_check_code =
    "";
-  Lexing.lex_code = 
+  Lexing.lex_code =
    "";
 }
 
 let rec skip_line lexbuf =
-    __ocaml_lex_skip_line_rec lexbuf 0
+   __ocaml_lex_skip_line_rec lexbuf 0
 and __ocaml_lex_skip_line_rec lexbuf __ocaml_lex_state =
   match Lexing.engine __ocaml_lex_tables __ocaml_lex_state lexbuf with
       | 0 ->
@@ -155,7 +155,7 @@ and __ocaml_lex_skip_line_rec lexbuf __ocaml_lex_state =
         raise End_of_file )
 # 157 "parsing/linenum.ml"
 
-  | __ocaml_lex_state -> lexbuf.Lexing.refill_buff lexbuf; 
+  | __ocaml_lex_state -> lexbuf.Lexing.refill_buff lexbuf;
       __ocaml_lex_skip_line_rec lexbuf __ocaml_lex_state
 
 ;;

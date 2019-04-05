@@ -9,8 +9,8 @@ YACCFLAGS=-v
 CAMLLEX=ocamllex
 CAMLDEP=ocamldep
 DEPFLAGS=$(INCLUDES)
-COMPFLAGS=$(FLAGS) -dtypes -warn-error A $(INCLUDES)
-LINKFLAGS=$(FLAGS) -cclib -lz3 -cclib -lz3stubs /usr/local/lib/ocaml/libcamlidl.a z3.cmxa \
+COMPFLAGS=$(FLAGS) -bin-annot -dtypes -warn-error A $(INCLUDES) -g
+LINKFLAGS=$(FLAGS) -cclib -lz3 -cclib -lz3stubs `ocamlfind query camlidl`/libcamlidl.a z3.cmxa \
 		 -I external/ocamlgraph/ \
 		 -I external/z3/ocaml -I external/z3/bin -I external/z3/lib
 INCLUDES=-I external/z3/ocaml/ \
@@ -39,7 +39,7 @@ TYPING=typing/unused_var.cmo typing/ident.cmo typing/path.cmo \
   typing/common.cmo typing/predicate.cmo \
   typing/typedecl.cmo typing/typeclass.cmo \
   typing/qualgen.cmo typing/qualdecl.cmo \
-  typing/typemod.cmo typing/qualmod.cmo 
+  typing/typemod.cmo typing/qualmod.cmo
 
 LIQUID= liquid/message.cmo liquid/theoremProverSimplify.cmo \
   liquid/theoremProverZ3.cmo \
@@ -60,7 +60,7 @@ LIQUID= liquid/message.cmo liquid/theoremProverSimplify.cmo \
   liquid/printqual.cmo liquid/qualifymod.cmo \
   liquid/qdebug.cmo liquid/normalize.cmo \
   liquid/qdump.cmo liquid/liqerrors.cmo liquid/liquid.cmo
-  
+
 # The wrapper to CDNF learning algorithm
 
 MINISATDIR = external/satsolvers/minisat
@@ -70,8 +70,8 @@ CFLAGS = -I$(OCAMLTOP) -I$(CDNFCORE)
 CXXFLAGS = -I$(OCAMLTOP) -I$(MINISATDIR) -I$(CDNFCORE)
 LDFLAGS = -L$(CDNFCORE)
 
-CDNFOBJS    =   
-# Compose everything together  
+CDNFOBJS    =
+# Compose everything together
 
 LIQOBJS=$(UTILS) $(PARSING) $(TYPING) $(CDNFOBJS) $(LIQUID)
 
@@ -173,12 +173,12 @@ beforedepend:: parsing/linenum.ml
 
 .ml.cmx:
 	$(CAMLOPT) $(COMPFLAGS) -c $<
-	
+
 .c.o:
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 .cc.o:
-	$(CXX) $(CXXFLAGS) -c -o $@ $<	
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 yiceslib:
 	mkdir -p external/yices/include/build; cd external/yices/include/build; $(MAKE) -f ../Makefile;

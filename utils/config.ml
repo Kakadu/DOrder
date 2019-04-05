@@ -38,11 +38,11 @@ let standard_library = "./ocamlib"
 
 let standard_runtime = "/usr/local/bin/ocamlrun"
 let ccomp_type = "cc"
-let bytecomp_c_compiler = "gcc -fno-defer-pop -no-cpp-precomp -Wall -D_FILE_OFFSET_BITS=64 -D_REENTRANT "
-let bytecomp_c_libraries = "-lcurses -lpthread"
-let native_c_compiler = "gcc -D_FILE_OFFSET_BITS=64 -D_REENTRANT"
-let native_c_libraries = ""
-let native_pack_linker = "ld -r -arch x86_64  -o "
+let bytecomp_c_compiler = "gcc -fno-defer-pop -Wall -D_FILE_OFFSET_BITS=64 -D_REENTRANT -fPIC"
+let bytecomp_c_libraries = "-lm  -ldl -lcurses -lpthread"
+let native_c_compiler = "gcc -Wall -D_FILE_OFFSET_BITS=64 -D_REENTRANT"
+let native_c_libraries = "-lm  -ldl"
+let native_pack_linker = "ld -r  -o "
 let ranlib = "ranlib"
 let cc_profile = "-pg"
 let mkdll = "%%MKDLL%%"
@@ -74,7 +74,7 @@ let stack_threshold = 256 (* see byterun/config.h *)
 
 let architecture = "amd64"
 let model = "default"
-let system = "macosx"
+let system = "linux"
 
 let asm = "%%ASM%%"
 

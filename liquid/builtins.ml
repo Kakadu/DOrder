@@ -36,8 +36,9 @@ let rec mk_longid = function
 let qsize funm rel x y z = (Path.mk_ident ("SIZE_" ^ (pprint_rel rel)), y,
                        Atom(Var z, rel, FunApp(funm, [Var x])))
 
-let qsize_arr = qsize "Array.length" 
-let qsize_str = qsize "String.length"
+(* let qsize_arr : Predicate.binrel -> Path.t -> 'a -> Path.t -> Path.t * 'a * Predicate.t =
+ *   qsize "Array.length"
+ * let qsize_str = qsize "String.length" *)
 
 let qdim rel dim x y z =
   let dimstr = string_of_int dim in
@@ -48,7 +49,7 @@ let qint rel i y =
   (Path.mk_ident (Printf.sprintf "INT_%s%d" (pprint_rel rel) i), y, Atom(Var y, rel, PInt i))
 
 let qrel rel x y =
-    (Path.mk_ident (Printf.sprintf "_%s%s%s_" (Path.name x) (pprint_rel rel) (Path.name y)), 
+    (Path.mk_ident (Printf.sprintf "_%s%s%s_" (Path.name x) (pprint_rel rel) (Path.name y)),
      x,
      Atom(Var x, rel, Var y))
 
@@ -70,15 +71,21 @@ let rBool name v p = mk_bool [(Path.mk_ident name, v, p)]
 
 let mk_array f qs = Fconstr(Predef.path_array, [f], [Invariant], ([], Qconst qs), [])
 
-let find_constructed_type id env =
+let find_constructed_type id env : Path.t * Frame.variance list =
+  let p id =  String.concat "." (List.rev id) in
+  Printf.printf "find_constructed_type `%s`\n%!" (p id);
   let path =
     try fst (Env.lookup_type (mk_longid id) env)
     with Not_found -> Printf.printf "Couldn't load %s!\n" (String.concat " " id); assert false
   in
-  let decl = Env.find_type path env in (path, List.map translate_variance decl.type_variance)
+  Printf.printf "PIZDA `%s`\n%!" (Path.name path);
+  let decl = Env.find_type path env in
+  Printf.printf "FOUND\n%!";
+  (path, List.map translate_variance decl.type_variance)
 
 let mk_named id fs qs env =
-  let (path, varis) = find_constructed_type id env in Fconstr(path, fs, varis, ([], Qconst qs), [])
+  let (path, varis) = find_constructed_type id env in
+  Fconstr(path, fs, varis, ([], Qconst qs), [])
 
 let mk_ref f env = Frecord (fst (find_constructed_type ["ref"; "Pervasives"] env), [(f, "contents", Mutable)], ([], Qconst []))
 
@@ -96,7 +103,7 @@ let rInt name v p = mk_int [(Path.mk_ident name, v, p)]
 let rArray b name v p = mk_array b [(Path.mk_ident name, v, p)]
 
 let mk_list f qs = Fconstr(Predef.path_list, [f], [Frame.Covariant], ([], Qconst qs), [])
-let uList f = mk_list f [] 
+let uList f = mk_list f []
 let rList name v p f = mk_list f [(Path.mk_ident name, v, p)]
 
 let char = ref 0
@@ -160,7 +167,7 @@ let _frames = lazy([
 
 	(["~-"; "Pervasives"],
    defun (fun x -> uInt ==> fun y -> rInt "~-" y ((Var y) ==. (PInt 0 -- (Var x)))));
-	
+
   (["lsr"; "Pervasives"],
    defun (fun x -> uInt ===> fun y -> uInt ==> fun z -> rInt "lsr" z (PInt 0 <=. Var z)));
 
@@ -177,7 +184,7 @@ let _frames = lazy([
           fun y -> uInt ==>
           fun z -> (rInt "mod" z
             (
-            (Var z ==. (Binop (Var x, Mod, Var y)))))));														
+            (Var z ==. (Binop (Var x, Mod, Var y)))))));
 
   (["/"; "Pervasives"],
    defun (fun x -> uInt ===>
@@ -201,7 +208,7 @@ let _frames = lazy([
 
   (["pred"; "Pervasives"], defun (fun x -> uInt ==> fun y -> rInt "pred" y ((Var y) ==. ((Var x) -- PInt 1))));
 
-	(["@"; "Pervasives"], defun (forall (fun a -> fun x -> uList a ===> fun y -> uList a ==> fun z -> 
+	(["@"; "Pervasives"], defun (forall (fun a -> fun x -> uList a ===> fun y -> uList a ==> fun z ->
 		rList "@" z (FunApp ("List.length", [Var z]) ==. FunApp ("List.length", [Var x]) +- FunApp ("List.length", [Var y])) a
 		)));
 
@@ -214,76 +221,77 @@ let _frames = lazy([
   poly_rel_frame [">="; "Pervasives"] ">=" Ge;
   poly_rel_frame ["<="; "Pervasives"] "<=" Le;
 
-  (["length"; "Array"],
-   defun (forall (fun a ->
-          fun x -> mk_array a [] ==>
-          fun y -> mk_int [qsize_arr Eq x y y; qint Ge 0 y])));
+  (* (["length"; "Array"],
+   *  defun (forall (fun a ->
+   *         fun x -> mk_array a [] ==>
+   *         fun y -> mk_int [qsize_arr Eq x y y; qint Ge 0 y])));
+   *
+   * (["set"; "Array"],
+   *  defun (forall (fun a ->
+   *         fun x -> mk_array a [] ===>
+   *         fun y -> mk_int [qsize_arr Lt x y y; qint Ge 0 y] ===>
+   *         fun z -> a ==>
+   *         fun _ ->
+	 * 					if (!Clflags.no_effect) then uUnit else
+	 * 					Frame.push_effect_fst ([(x, mk_array a [
+	 * 						let test_var = Path.mk_ident "AA" in
+	 * 						(Path.mk_ident "Effect",test_var,
+	 * 						Predicate.big_and [
+	 * 							Predicate.implies (
+	 * 								Predicate.Atom (Var (Frame.get_ho_param 0),Predicate.Eq, Var y),
+	 * 								Predicate.Atom (FunApp("Ret2", [Var test_var; Var (Frame.get_ho_param 0)]), Predicate.Eq, Var z));
+	 * 							Predicate.implies (
+	 * 								Predicate.Atom (Var (Frame.get_ho_param 0),Predicate.Ne, Var y),
+	 * 								Predicate.Atom (FunApp("Ret2", [Var test_var; Var (Frame.get_ho_param 0)]),
+	 * 									Predicate.Eq, FunApp("Ret2", [Var x; Var (Frame.get_ho_param 0)])));
+	 * 							Predicate.Atom (FunApp("Array.length", [Var test_var]), Predicate.Eq, FunApp("Array.length", [Var x]))
+	 * 						])])]) uUnit)));
+   *
+   * (["get"; "Array"],
+   *  defun (forall (fun a ->
+   *         fun x -> mk_array a [] ===>
+   *         fun y -> mk_int [qsize_arr Lt x y y; qint Ge 0 y] ==>
+   *         fun _ -> a)));
+   *
+   * (["make"; "Array"],
+   *  defun (forall (fun a ->
+   *         fun x -> rInt "NonNegSize" x (PInt 0 <=. Var x) ===>
+   *         fun y -> a ==>
+   *         fun z -> mk_array a [qsize_arr Eq z z x])));
+   *
+   * (["init"; "Array"],
+   *  defun (forall (fun a ->
+   *         fun x -> rInt "NonNegSize" x (PInt 0 <=. Var x) ===>
+   *         fun i -> (defun (fun y -> rInt "Bounded" y ((PInt 0 <=. Var y) &&. (Var y <. Var x)) ==> fun _ -> a)) ==>
+   *         fun z -> mk_array a [qsize_arr Eq z z x])));
+   *
+   * (["copy"; "Array"],
+   *  defun (forall (fun a ->
+   *         fun arr -> mk_array a [] ==>
+   *         fun c -> rArray a "SameSize" c (FunApp("Array.length", [Var c]) ==. FunApp("Array.length", [Var arr])))));
+   *
+   * (["make"; "String"],
+   *  defun (forall (fun a ->
+   *         fun x -> rInt "NonNegSize" x (PInt 0 <=. Var x) ===>
+   *         fun c -> uChar ==>
+   *         fun s -> mk_string [qsize_str Eq s s x])));
+   *
+   * (["length"; "String"],
+   *  defun (fun x -> mk_string [] ==>
+   *         fun y -> mk_int [qsize_str Eq x y y; qint Ge 0 y]));
+   *
+   * (["get"; "String"],
+   *  defun (forall (fun a ->
+   *         fun x -> uString ===>
+   *         fun y -> mk_int [qsize_str Lt x y y; qint Ge 0 y] ==>
+   *         fun z -> uChar)));
+   *)
 
-  (["set"; "Array"],
-   defun (forall (fun a ->
-          fun x -> mk_array a [] ===>
-          fun y -> mk_int [qsize_arr Lt x y y; qint Ge 0 y] ===>
-          fun z -> a ==>
-          fun _ -> 
-						if (!Clflags.no_effect) then uUnit else
-						Frame.push_effect_fst ([(x, mk_array a [
-							let test_var = Path.mk_ident "AA" in
-							(Path.mk_ident "Effect",test_var,
-							Predicate.big_and [
-								Predicate.implies (
-									Predicate.Atom (Var (Frame.get_ho_param 0),Predicate.Eq, Var y), 
-									Predicate.Atom (FunApp("Ret2", [Var test_var; Var (Frame.get_ho_param 0)]), Predicate.Eq, Var z));
-								Predicate.implies (
-									Predicate.Atom (Var (Frame.get_ho_param 0),Predicate.Ne, Var y),
-									Predicate.Atom (FunApp("Ret2", [Var test_var; Var (Frame.get_ho_param 0)]), 
-										Predicate.Eq, FunApp("Ret2", [Var x; Var (Frame.get_ho_param 0)])));
-								Predicate.Atom (FunApp("Array.length", [Var test_var]), Predicate.Eq, FunApp("Array.length", [Var x]))	
-							])])]) uUnit)));
+   (["int"; "Random"], defun ( fun x -> rInt "PosMax" x (PInt 0 <. Var x) ==>
+                               fun y -> rInt "RandBounds" y ((PInt 0 <=. Var y) &&. (Var y <. Var x))));
+ 	 (["bool"; "Random"], defun (fun x -> uUnit ==>
+                               fun y -> rBool "RandBool" y True));
 
-  (["get"; "Array"],
-   defun (forall (fun a ->
-          fun x -> mk_array a [] ===>
-          fun y -> mk_int [qsize_arr Lt x y y; qint Ge 0 y] ==>
-          fun _ -> a)));
-
-  (["make"; "Array"],
-   defun (forall (fun a ->
-          fun x -> rInt "NonNegSize" x (PInt 0 <=. Var x) ===>
-          fun y -> a ==>
-          fun z -> mk_array a [qsize_arr Eq z z x])));
-
-  (["init"; "Array"],
-   defun (forall (fun a ->
-          fun x -> rInt "NonNegSize" x (PInt 0 <=. Var x) ===>
-          fun i -> (defun (fun y -> rInt "Bounded" y ((PInt 0 <=. Var y) &&. (Var y <. Var x)) ==> fun _ -> a)) ==>
-          fun z -> mk_array a [qsize_arr Eq z z x])));
-
-  (["copy"; "Array"],
-   defun (forall (fun a ->
-          fun arr -> mk_array a [] ==>
-          fun c -> rArray a "SameSize" c (FunApp("Array.length", [Var c]) ==. FunApp("Array.length", [Var arr])))));
-
-  (["make"; "String"],
-   defun (forall (fun a ->
-          fun x -> rInt "NonNegSize" x (PInt 0 <=. Var x) ===>
-          fun c -> uChar ==>
-          fun s -> mk_string [qsize_str Eq s s x])));
-
-  (["length"; "String"],
-   defun (fun x -> mk_string [] ==>
-          fun y -> mk_int [qsize_str Eq x y y; qint Ge 0 y]));
-
-  (["get"; "String"],
-   defun (forall (fun a ->
-          fun x -> uString ===>
-          fun y -> mk_int [qsize_str Lt x y y; qint Ge 0 y] ==>
-          fun z -> uChar)));
-
-  (["int"; "Random"], defun (fun x -> rInt "PosMax" x (PInt 0 <. Var x) ==>
-                             fun y -> rInt "RandBounds" y ((PInt 0 <=. Var y) &&. (Var y <. Var x))));
-														
-	(["bool"; "Random"], defun (fun x -> uUnit ==>
-                             fun y -> rBool "RandBool" y True));													
 ])
 
 let bigarray_dim_frame dim env =
@@ -292,40 +300,41 @@ let bigarray_dim_frame dim env =
           fun r -> mk_bigarray_type a (mk_tyvar ()) (mk_tyvar ()) [] env ==>
           fun s -> mk_int [qdim Eq dim r s s; qint Gt 0 s])))
 
-let _lib_frames env = [
-  (["create"; "Array2"; "Bigarray"],
-   defun (forall (fun a -> forall (fun b -> forall (fun c ->
-          fun k -> mk_bigarray_kind a b [] env ===>
-          fun l -> mk_bigarray_layout c [] env ===>
-          fun dim1 -> mk_int [qint Gt 0 dim1] ===>
-          fun dim2 -> mk_int [qint Gt 0 dim2] ==>
-          fun z -> mk_bigarray_type a b c [qdim Eq 1 z z dim1; qdim Eq 2 z z dim2] env)))));
-
-  (["get"; "Array2"; "Bigarray"],
-   defun (forall (fun a ->
-          fun r -> mk_bigarray_type a (mk_tyvar ()) (mk_tyvar ()) [] env ===>
-          fun i -> mk_int [qint Ge 0 i; qdim Lt 1 r i i] ===>
-          fun j -> mk_int [qint Ge 0 j; qdim Lt 2 r j j] ==>
-          fun _ -> a)));
-
-  (["set"; "Array2"; "Bigarray"],
-   defun (forall (fun a ->
-          fun u -> mk_bigarray_type a (mk_tyvar ()) (mk_tyvar ()) [] env ===>
-          fun i -> mk_int [qint Ge 0 i; qdim Lt 1 u i i] ===>
-          fun j -> mk_int [qint Ge 0 j; qdim Lt 2 u j j] ===>
-          fun v -> a ==>
-          fun _ -> uUnit)));
-
-  bigarray_dim_frame 1 env;
-  bigarray_dim_frame 2 env;
-]
+let _lib_frames env = []
+ (* [
+ *   (["create"; "Array2"; "Bigarray"],
+ *    defun (forall (fun a -> forall (fun b -> forall (fun c ->
+ *           fun k -> mk_bigarray_kind a b [] env ===>
+ *           fun l -> mk_bigarray_layout c [] env ===>
+ *           fun dim1 -> mk_int [qint Gt 0 dim1] ===>
+ *           fun dim2 -> mk_int [qint Gt 0 dim2] ==>
+ *           fun z -> mk_bigarray_type a b c [qdim Eq 1 z z dim1; qdim Eq 2 z z dim2] env)))));
+ *
+ *   (["get"; "Array2"; "Bigarray"],
+ *    defun (forall (fun a ->
+ *           fun r -> mk_bigarray_type a (mk_tyvar ()) (mk_tyvar ()) [] env ===>
+ *           fun i -> mk_int [qint Ge 0 i; qdim Lt 1 r i i] ===>
+ *           fun j -> mk_int [qint Ge 0 j; qdim Lt 2 r j j] ==>
+ *           fun _ -> a)));
+ *
+ *   (["set"; "Array2"; "Bigarray"],
+ *    defun (forall (fun a ->
+ *           fun u -> mk_bigarray_type a (mk_tyvar ()) (mk_tyvar ()) [] env ===>
+ *           fun i -> mk_int [qint Ge 0 i; qdim Lt 1 u i i] ===>
+ *           fun j -> mk_int [qint Ge 0 j; qdim Lt 2 u j j] ===>
+ *           fun v -> a ==>
+ *           fun _ -> uUnit)));
+ *
+ *   bigarray_dim_frame 1 env;
+ *   bigarray_dim_frame 2 env;
+ * ] *)
 
 let _type_path_constrs env = [
   ("ref", find_constructed_type ["ref"; "Pervasives"] env);
   ("array2", find_constructed_type ["t"; "Array2"; "Bigarray"] env);
 ]
 
-let _type_paths = ref None
+let _type_paths: (string * (Path.t * Frame.variance)) list option ref  = ref None
 
 let ext_find_type_path t =
   let (_, (path, _)) = (List.find (fun (a, _) -> (a = t))
@@ -333,12 +342,19 @@ let ext_find_type_path t =
                              | Some b -> b))
   in path
 
-let find_path id env = fst (Env.lookup_value (mk_longid id) env)
+let find_path id env =
+  Printf.printf "find_path %s\n%!" (String.concat "." id);
+  fst (Env.lookup_value (mk_longid id) env)
 
 let frames env =
-  let _ = _type_paths := Some (_type_path_constrs env) in
+  Printf.printf "**** %s %d\n%!" __FILE__ __LINE__;
+  (* let _ = _type_paths := Some (_type_path_constrs env) in *)
   let resolve_names x = List.map (fun (id, fr) -> (find_path id env, fr)) x in
-  List.append (resolve_names (Lazy.force _frames)) (resolve_names (_lib_frames env))
+  let ans1  =  (resolve_names (Lazy.force _frames)) in
+  Printf.printf "**** %s %d\n%!" __FILE__ __LINE__;
+  let ans2  =  (resolve_names (_lib_frames env)) in
+  Printf.printf "**** %s %d\n%!" __FILE__ __LINE__;
+  List.append ans1 ans2
 
 let equality_qualifier exp =
   let x = Path.mk_ident "V" in
@@ -360,19 +376,19 @@ let size_lit_refinement i =
     ([], Qconst [(Path.mk_ident "<size_lit_eq>",
                   x,
                   FunApp("Array.length", [Var x]) ==. PInt i)])
-									
-									
-let size_lit_sorted_refinement i = 									
+
+
+let size_lit_sorted_refinement i =
 	let x = Path.mk_ident "x" in
     ([], Qconst [(Path.mk_ident "<size_lit_eq>",
 		  x,
-		  And ((FunApp("Array.length", [Var x]) ==. PInt i), 
-			(implies ((PInt 0 <=. Var (Frame.get_ho_param 0)) &&. 
-				(Var (Frame.get_ho_param 0) <. (PInt i -- PInt 1)), 
-						FunApp ("Ret2", [Var x; Var (Frame.get_ho_param 0)]) <=. 
+		  And ((FunApp("Array.length", [Var x]) ==. PInt i),
+			(implies ((PInt 0 <=. Var (Frame.get_ho_param 0)) &&.
+				(Var (Frame.get_ho_param 0) <. (PInt i -- PInt 1)),
+						FunApp ("Ret2", [Var x; Var (Frame.get_ho_param 0)]) <=.
 									FunApp ("Ret2", [Var x; PInt 1 +- Var (Frame.get_ho_param 0)]))))
 			)])
-									
+
 let field_eq_qualifier name pexp =
   let x = Path.mk_ident "x" in (Path.mk_ident "<field_eq>", x, Field (name, Var x) ==. pexp)
 
